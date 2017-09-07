@@ -409,21 +409,25 @@ class InterestingnessTests(TestCase):
 
     def test_range(self):
         """Tests for the 'range' interestingness test"""
-        l = lithium.Lithium()
         with open("temp.js", "w") as tempf:
             tempf.write("hello")
 
-        # check for a known string, twice
-        with self.assertLogs("lithium") as test_logs:
-            result = l.main(["range", "0", "2", "outputs", "hello"] + self.cat_cmd + ["temp.js"])
-            self.assertEqual(result, 0)
-            found_rec = False
-            # scan the log output to see how many tests were performed
-            for rec in test_logs.records:
-                if "Tests performed:" in rec.msg:
-                    self.assertEqual(rec.args[0], 2)  # should have run 2x
-                    found_rec = True
-            self.assertTrue(found_rec)  # check that we hit the check ;)
+        # Look for a non-existent string, so range should try to loop the maximum number of desired iterations (5x)
+        op = ""
+        try:
+            subprocess.check_output([sys.executable, "-m", "lithium", "range", "1", "5", "outputs", "notfound",
+                                     "cat", "temp.js"], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            if e.returncode is 1:
+                op = e.output
+        # result = l.main(["range", "1", "5", "outputs", "notfound"] + self.cat_cmd + ["temp.js"])
+        # self.assertEqual(result, 1)
+
+        found_num = 0
+        for rec in op.splitlines():
+            if b"Range number " in rec:
+                found_num += 1
+        self.assertEqual(found_num, 5)  # should have run 5x
 
 
 class LithiumTests(TestCase):
